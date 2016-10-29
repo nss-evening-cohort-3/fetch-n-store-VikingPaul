@@ -2,14 +2,28 @@
 var app = angular.module('fetchNStuff', []);
 
 
-app.controller("requests", ($scope, DOOMFactory) => {
+app.controller("requests", ($scope, DOOMFactory, $http) => {
     $scope.request = {
         method: "",
         url: ""
     };
-    $scope.sendRequest = () => {
-        DOOMFactory.request($scope.request);
+    $scope.display = {
+        statusCode: "",
+        url: "",
+        method: "",
+        time: ""
     };
+    $http.get('api/response').success((data) => {
+        console.log(data);
+    })
+    $scope.sendRequest = () => {
+        DOOMFactory.request($scope.request).then((response) => {
+            $scope.display = response;
+        });
+    };
+    $scope.saveRequest = () => {
+        DOOMFactory.responseSave($scope.display)
+    }
 });
 
 
@@ -20,18 +34,43 @@ app.factory("DOOMFactory", ($http, $q) => {
             $http({
                 method: requestInfo.method,
                 url: requestInfo.url
-            }).success((code) => {
+            }).success((data, status) => {
                 let endTime = Date.now();
                 let total = endTime - startTime;
-                console.log(code, requestInfo.url, requestInfo.method, total);
-                resolve(code, requestInfo.url, requestInfo.method, total);
-            }).error((code) => {
+                let response = {
+                    statusCode: status,
+                    url: requestInfo.url,
+                    method: requestInfo.method,
+                    time: total
+                };
+                resolve(response);
+            }).error((error, status) => {
                 let endTime = Date.now();
                 let total = endTime - startTime;
-                console.log(code, requestInfo.url, requestInfo.method, total);
-                resolve(total, code);
+                let response = {
+                    statusCode: status,
+                    url: requestInfo.url,
+                    method: requestInfo.method,
+                    time: total
+                };
+                resolve(response);
             })
         })
     };
-    return { request: request };
+
+    var responseSave = (data) => {
+        $http.post('api/response', data).success(() => {
+            console.log("success")
+        })
+    };
+    var responseGet = () => {
+        return $q((resolve) => {
+            let startTime = Date.now();
+            $http.get('api/response').success((data) => {
+                resolve(data);
+            })
+        })
+    }
+
+    return { request: request, responseSave: responseSave, responseGet: responseGet };
 });
